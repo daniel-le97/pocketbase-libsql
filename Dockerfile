@@ -1,28 +1,3 @@
-FROM oven/bun:latest AS base
-WORKDIR /usr/src/app
-
-FROM base AS install
-RUN mkdir -p /temp/dev
-COPY ui/package.json ui/bun.lock /temp/dev/
-RUN cd /temp/dev && bun install --frozen-lockfile
-
-RUN mkdir -p /temp/prod
-COPY ui/package.json ui/bun.lock /temp/prod/
-RUN cd /temp/prod && bun install --frozen-lockfile --production
-
-FROM base AS prerelease
-COPY --from=install /temp/dev/node_modules node_modules
-COPY . .
-
-ENV NODE_ENV=production
-# RUN bun test
-RUN bun run build
-
-FROM base AS release
-COPY --from=install /temp/prod/node_modules node_modules
-COPY --from=prerelease /usr/src/app/index.ts .
-COPY --from=prerelease /usr/src/app/package.json .
-
 # Use the official Golang image to create a build artifact.
 # This is the build stage.
 FROM golang:1.23-bullseye AS builder
@@ -69,10 +44,10 @@ WORKDIR /root/
 # Copy the Pre-built binary file from the previous stage
 COPY --from=builder /app/main ./
 COPY --from=builder /app/.env ./
-COPY --from=builder /app/pb_hooks ./pb_hooks
-COPY --from=builder /app/pb_migrations ./pb_migrations
+# COPY --from=builder /app/pb_hooks ./pb_hooks
+# COPY --from=builder /app/pb_migrations ./pb_migrations
 # COPY --from=builder /app/pb_data ./pb_data/
-COPY --from=builder /app/combined.json ./
+# COPY --from=builder /app/combined.json ./
 
 # Expose port 8090 to the outside world
 EXPOSE 8090

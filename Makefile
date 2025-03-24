@@ -1,8 +1,5 @@
 # Basic Makefile Example
-.PHONY: dev run check-deps linux-arm linux-amd darwin-amd darwin-arm check_and_create_dir build
-
-dev:
-	cd ./ui && bun run dev
+.PHONY: run check-deps linux-arm linux-amd darwin-amd darwin-arm check_and_create_dir build
 
 run:
 	./dist/build/pb-linux-amd64 serve
@@ -19,12 +16,6 @@ check-deps:
 		echo "Go not found, please check https://go.dev/dl/"; \
 	else \
 		echo "Go is already installed"; \
-	fi
-
-	@if [ -z "$(shell which bun)" ]; then \
-		echo "bun not found, this is used for ./ui, if you are not developing the frontend, you can ignore this, please check https://bun.sh/docs/installation"; \
-	else \
-		echo "bun is already installed"; \
 	fi
 
 OUTPUT_BINARY=pb

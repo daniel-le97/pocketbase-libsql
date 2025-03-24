@@ -1,0 +1,38 @@
+services:
+  db:
+    # image: ghcr.io/tursodatabase/libsql-server:9241b00
+    build:
+      dockerfile: Dockerfile.libsql
+    platform: linux/amd64
+    ports:
+      - "8080:8080"
+      - "5001:5001"
+    environment:
+      - SQLD_NODE=primary
+    volumes:
+      - ./data/libsql:/var/lib/sqld
+    networks:
+      - mynetwork
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://0.0.0.0:8080/health"]
+      interval: 5s
+      timeout: 2s
+      retries: 5
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    platform: linux/amd64
+    ports:
+      - "8090:8090"
+    depends_on:
+      db:
+        condition: service_healthy
+    # environment:
+    #   - TURSO_URL=http://db:8080
+    networks:
+      - mynetwork
+
+networks:
+  mynetwork:
+    driver: bridge

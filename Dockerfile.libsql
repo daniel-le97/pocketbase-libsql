@@ -1,0 +1,10 @@
+# CUSTOM LIBSQL IMAGE WITH CURL FOR EASY HEALTHCHECKS
+FROM ghcr.io/tursodatabase/libsql-server
+
+# Install curl
+RUN apt-get update && apt-get install -y curl
+
+# Clean up to reduce image size
+RUN apt-get clean && rm -rf /var/lib/apt/lists/*
+
+

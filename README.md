@@ -73,6 +73,25 @@ If you prefer to use Docker, ensure you have Docker installed on your machine. Y
     ```sh
     docker run -d -p 8090:8090 --name pocketbase-libsql-container -e TURSO_URL=<your_turso_url> pocketbase-libsql
     ```
+
+## prebuilt docker image
+you can use the prebuilt docker image from github container registry, you can pull it using the following command:
+
+```sh
+docker pull ghcr.io/daniel-le97/pocketbase-libsql:latest
+```
+you can run it using the following command:
+
+```sh
+docker run -d -p 8090:8090 --name pocketbase-libsql-container -e TURSO_URL=<your_turso_url> ghcr.io/daniel-le97/pocketbase-libsql:latest
+```
+if you are using TURSO you need to set the TURSO_AUTH_TOKEN env variable as well, you can do this by adding -e TURSO_AUTH_TOKEN=<your_turso_auth_token> to the docker run command.
+
+```sh
+docker run -d -p 8090:8090 --name pocketbase-libsql-container -e TURSO_URL=<your_turso_url> -e TURSO_AUTH_TOKEN=<your_turso_auth_token> ghcr.io/daniel-le97/pocketbase-libsql:latest
+```
+
+or you can use the docker-compose file to run it with a local libsql server instance
 ### Docker compose
 1. this runs a self hosted libsql server instance and does not use turso
     ```sh
@@ -97,7 +116,7 @@ please note this will run "./dist/build/pb-$(GOOS)-$(GOARCH) serve".
 Available targets:
  run                  Run the application based on the current OS
  check-deps           Check if required dependencies (Zig and Go) are installed
- install-zig          Install Zig using Go's package manager
+ install-zig          Install Zig using ZVM (a Zig version manager written in Go)
  check_and_create_dir Check if the output directory exists, and create it if necessary
  build                Build the application for the specified target or will default to the current OS
  zig-build            Build the application using Zig (use this for cross-compilation)

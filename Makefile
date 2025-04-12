@@ -157,7 +157,7 @@ DOCKER_REGISTRY=ghcr.io
 docker-build: ## Build the Docker image
 	@echo "$(COLOR_BLUE)Building Docker image $(DOCKER_IMAGE_NAME):$(DOCKER_TAG)...$(COLOR_RESET)"
 	@if docker build -t $(DOCKER_REGISTRY)/$(GITHUB_USERNAME)/$(DOCKER_IMAGE_NAME):$(DOCKER_TAG) .; then \
-        echo "$(COLOR_GREEN)Docker image built successfully: $(DOCKER_IMAGE_NAME):$(DOCKER_TAG)$(COLOR_RESET)"; \
+        echo "$(COLOR_GREEN)Docker image built successfully: $(DOCKER_REGISTRY)/$(GITHUB_USERNAME)/$(DOCKER_IMAGE_NAME):$(DOCKER_TAG)$(COLOR_RESET)"; \
     else \
         echo "$(COLOR_RED)Failed to build Docker image. Please check the logs.$(COLOR_RESET)"; \
         exit 1; \

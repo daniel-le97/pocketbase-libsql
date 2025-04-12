@@ -31,8 +31,8 @@ ENV CGO_ENABLED=1
 ENV CC="zig cc -target ${ZIG_ARCH}-linux-gnu -isystem /usr/include"
 ENV CXX="zig c++ -target ${ZIG_ARCH}-linux-gnu -isystem /usr/include"
 ENV GOARCH=amd64
-ENV GOOS=linux 
-# ENV OK=-ldflags '-extldflags "-ldl -lc -static"' 
+ENV GOOS=linux
+# ENV OK=-ldflags '-extldflags "-ldl -lc -static"'
 RUN go build -ldflags '-s -w -extldflags "-lc -lunwind -static"' -o main main.go
 
 # Start a new stage from scratch
@@ -40,6 +40,9 @@ FROM debian:bullseye-slim
 RUN apt-get update && apt-get install -y ca-certificates
 
 WORKDIR /root/
+
+# Add OCI label for the source repository
+LABEL org.opencontainers.image.source="https://github.com/daniel-le97/pocketbase-libsql"
 
 # Copy the Pre-built binary file from the previous stage
 COPY --from=builder /app/main ./
@@ -56,4 +59,4 @@ EXPOSE 8090
 ENV PORT=8090
 
 # Command to run the executable
-CMD sh -c "./main serve --http=0.0.0.0:${PORT}"
+CMD ["sh", "-c", "./main serve --http=0.0.0.0:${PORT}"]

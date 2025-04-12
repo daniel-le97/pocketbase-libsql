@@ -1,16 +1,17 @@
 package main
 
 import (
-	"time"
-	"fmt"
+	// "time"
 	"database/sql"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
-	"github.com/pocketbase/dbx"
+
 	"github.com/joho/godotenv"
+	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
@@ -18,7 +19,8 @@ import (
 	"github.com/pocketbase/pocketbase/plugins/jsvm"
 	"github.com/pocketbase/pocketbase/plugins/migratecmd"
 	"github.com/pocketbase/pocketbase/tools/hook"
-	"github.com/tursodatabase/go-libsql"
+	// "github.com/pocketbase/pocketbase/tools/security"
+	// _ "github.com/tursodatabase/libsql-client-go/libsql"
 )
 
 // register the libsql driver to use the same query builder
@@ -32,8 +34,13 @@ func Open(driverName, dsn string) (*dbx.DB, error) {
 	authToken := os.Getenv("TURSO_AUTH_TOKEN")
 	if strings.Contains(primaryUrl, "libsql") {
 		if authToken == "" {
-            return nil, fmt.Errorf("TURSO_AUTH_TOKEN must not be empty when TURSO_URL is from the turso platform")
-        }
+			return nil, fmt.Errorf("TURSO_AUTH_TOKEN must not be empty when TURSO_URL is from the turso platform")
+		}
+		db, err := sql.Open("libsql", primaryUrl)
+		if err != nil {
+			return nil, err
+		}
+		return dbx.NewFromDB(db, driverName), nil
 	}
 
 	// use sqlite driver when TURSO_URL is not set
@@ -46,21 +53,25 @@ func Open(driverName, dsn string) (*dbx.DB, error) {
 	}
 
 	// ensure TURSO_URL is reachable
-	toHTTP := strings.Replace(primaryUrl, "libsql", "http", 1)
-	_, err := http.Get(toHTTP + "/health")
-	if err != nil {
-		return nil, err
-	}
+	// toHTTP := strings.Replace(primaryUrl, "libsql", "http", 1)
+	// _, err := http.Get(toHTTP + "/health")
+	// if err != nil {
+	// 	return nil, err
+	// }
 
-	syncInterval := time.Second
-	connector, err := libsql.NewEmbeddedReplicaConnector(dsn, primaryUrl,
-		libsql.WithAuthToken(authToken),
-		libsql.WithSyncInterval(syncInterval))
-	if err != nil {
-		return nil, err
-	}
+	// syncInterval := time.Second
+	// connector, err := libsql.NewEmbeddedReplicaConnector(dsn, primaryUrl,
+	// 	libsql.WithAuthToken(authToken),
+	// 	libsql.WithSyncInterval(syncInterval))
+	// if err != nil {
+	// 	return nil, err
+	// }
 
-	sqlDB := sql.OpenDB(connector)
+	// sqlDB := sql.OpenDB(connector)
+	sqlDB, err := sql.Open("libsql", primaryUrl)
+	if err != nil {
+
+	}
 	return dbx.NewFromDB(sqlDB, driverName), nil
 }
 
@@ -73,16 +84,28 @@ func main() {
 	godotenv.Read()
 
 	// var db *dbx.DB
-	app := pocketbase.NewWithConfig(pocketbase.Config{
-		DBConnect: func(dbPath string) (*dbx.DB, error) {
-			if strings.Contains(dbPath, "data.db") {
-				return Open("sqlite3", dbPath)
-			}
-			// optionally for the logs (aka. pb_data/auxiliary.db) use the default local filesystem driver
-			return core.DefaultDBConnect(dbPath)
-		},
-	})
+	app := pocketbase.New()
+
+	app.OnBootstrap().BindFunc(func(e *core.BootstrapEvent) error {
+        if err := e.Next(); err != nil {
+            return err
+        }
+
 	
+
+        // e.App
+
+        return nil
+    })
+	// app := pocketbase.NewWithConfig(pocketbase.Config{
+	// 	DBConnect: func(dbPath string) (*dbx.DB, error) {
+	// 		if strings.Contains(dbPath, "data.db") {
+	// 			return Open("sqlite3", dbPath)
+	// 		}
+	// 		// optionally for the logs (aka. pb_data/auxiliary.db) use the default local filesystem driver
+	// 		return core.DefaultDBConnect(dbPath)
+	// 	},
+	// })
 
 	// ---------------------------------------------------------------
 	// Optional plugin flags:
@@ -178,6 +201,39 @@ func main() {
 			return e.Next()
 		},
 		Priority: 999, // execute as latest as possible to allow users to provide their own route
+	})
+
+	app.OnRecordAfterCreateSuccess().BindFunc(func(e *core.RecordEvent) error {
+		// e.App
+		// e.Record
+
+		// data := e.Record.FieldsData()
+		// record := core.NewRecord(e.Record.Collection())
+		// for key, value := range data {
+		// 	if key == "" {
+		// 		fmt.Println(value)
+		// 		continue
+		// 	}
+		// 	if key == "id" {
+		// 		value = security.RandomString(15)
+		// 	}
+		// 	record.Set(key, value)
+		// }
+
+		// err := e.App.SaveNoValidate(record)
+		// if err != nil {
+		// 	fmt.Println(err)
+		// }
+
+		// e.App.DB().Insert(e.Record.Collection().Name, )
+		return e.Next()
+	})
+
+	app.OnRecordCreate().BindFunc(func(e *core.RecordEvent) error {
+		// e.App
+		// e.Record
+		fmt.Println(e.Record.Id)
+		return e.Next()
 	})
 
 	if err := app.Start(); err != nil {

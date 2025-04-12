@@ -3,12 +3,12 @@
 this is a go project that uses pocketbase as a framework, and uses libsql as a replacement for sqlite
 
 ## ENV variables
- 1. TURSO_URL
-    1. if the url is empty, it will fallback to using libsqls local driver ( sqlite )
-    2. if the url starts with "libsql" using the libsql protocol it will assume the URL is from the turso platform in which case TURSO_AUTH_TOKEN must be set
-    3. you can use http/https urls for libsql server
- 2. TURSO_AUTH_TOKEN
-    1. only required if using turso, is not required to be set when using libsql server or the local file driver
+ * TURSO_URL
+    - if the url is empty, it will fallback to using libsqls local driver ( sqlite )
+    - if the url starts with "libsql" using the libsql protocol it will assume the URL is from the turso platform in which case TURSO_AUTH_TOKEN must be set
+    - you can use http/https urls for libsql server
+ * TURSO_AUTH_TOKEN
+    - only required if using turso, is not required to be set when using libsql server or the local file driver
 
 ## Prerequisites
 

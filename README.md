@@ -1,6 +1,8 @@
 # pocketbase-libsql
 
-this is a go project that uses pocketbase as a framework, and uses libsql as a replacement for sqlite
+this is a go project that uses pocketbase as a framework, and uses libsql as a replacement for sqlite.
+
+libsql allows us to have an replicated embeded database, meaning we can deploy multiple instances pointing to the same libsql server, and they will all be in sync with each other.
 
 ## ENV variables
  * TURSO_URL

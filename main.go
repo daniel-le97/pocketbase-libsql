@@ -1,7 +1,7 @@
 package main
 
 import (
-	// "time"
+	"time"
 	"database/sql"
 	"fmt"
 	"log"
@@ -19,6 +19,7 @@ import (
 	"github.com/pocketbase/pocketbase/plugins/jsvm"
 	"github.com/pocketbase/pocketbase/plugins/migratecmd"
 	"github.com/pocketbase/pocketbase/tools/hook"
+	"github.com/tursodatabase/go-libsql"
 	// "github.com/pocketbase/pocketbase/tools/security"
 	// _ "github.com/tursodatabase/libsql-client-go/libsql"
 )
@@ -36,15 +37,11 @@ func Open(driverName, dsn string) (*dbx.DB, error) {
 		if authToken == "" {
 			return nil, fmt.Errorf("TURSO_AUTH_TOKEN must not be empty when TURSO_URL is from the turso platform")
 		}
-		db, err := sql.Open("libsql", primaryUrl)
-		if err != nil {
-			return nil, err
-		}
-		return dbx.NewFromDB(db, driverName), nil
 	}
 
 	// use sqlite driver when TURSO_URL is not set
 	if primaryUrl == "" {
+		fmt.Println("using sqlite driver")
 		db, err := sql.Open("libsql", "file:"+dsn)
 		if err != nil {
 			return nil, err
@@ -53,25 +50,35 @@ func Open(driverName, dsn string) (*dbx.DB, error) {
 	}
 
 	// ensure TURSO_URL is reachable
-	// toHTTP := strings.Replace(primaryUrl, "libsql", "http", 1)
-	// _, err := http.Get(toHTTP + "/health")
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// syncInterval := time.Second
-	// connector, err := libsql.NewEmbeddedReplicaConnector(dsn, primaryUrl,
-	// 	libsql.WithAuthToken(authToken),
-	// 	libsql.WithSyncInterval(syncInterval))
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// sqlDB := sql.OpenDB(connector)
-	sqlDB, err := sql.Open("libsql", primaryUrl)
+	toHTTP := strings.Replace(primaryUrl, "libsql", "http", 1)
+	_, err := http.Get(toHTTP + "/health")
 	if err != nil {
-
+		return nil, err
 	}
+
+	fmt.Println("connecting to turso replica")
+
+	syncInterval := time.Second
+	if authToken == "" {
+		connector, err := libsql.NewEmbeddedReplicaConnector(dsn, primaryUrl,
+			libsql.WithSyncInterval(syncInterval))
+		if err != nil {
+			return nil, err
+		}
+		sqlDB := sql.OpenDB(connector)
+
+		return dbx.NewFromDB(sqlDB, driverName), nil
+	}
+
+	connector, err := libsql.NewEmbeddedReplicaConnector(dsn, primaryUrl,
+		libsql.WithAuthToken(authToken),
+		libsql.WithSyncInterval(syncInterval))
+	if err != nil {
+		return nil, err
+	}
+
+	sqlDB := sql.OpenDB(connector)
+
 	return dbx.NewFromDB(sqlDB, driverName), nil
 }
 
@@ -83,29 +90,15 @@ func main() {
 
 	godotenv.Read()
 
-	// var db *dbx.DB
-	app := pocketbase.New()
-
-	app.OnBootstrap().BindFunc(func(e *core.BootstrapEvent) error {
-        if err := e.Next(); err != nil {
-            return err
-        }
-
-	
-
-        // e.App
-
-        return nil
-    })
-	// app := pocketbase.NewWithConfig(pocketbase.Config{
-	// 	DBConnect: func(dbPath string) (*dbx.DB, error) {
-	// 		if strings.Contains(dbPath, "data.db") {
-	// 			return Open("sqlite3", dbPath)
-	// 		}
-	// 		// optionally for the logs (aka. pb_data/auxiliary.db) use the default local filesystem driver
-	// 		return core.DefaultDBConnect(dbPath)
-	// 	},
-	// })
+	app := pocketbase.NewWithConfig(pocketbase.Config{
+		DBConnect: func(dbPath string) (*dbx.DB, error) {
+			if strings.Contains(dbPath, "data.db") {
+				return Open("sqlite3", dbPath)
+			}
+			// optionally for the logs (aka. pb_data/auxiliary.db) use the default local filesystem driver
+			return core.DefaultDBConnect(dbPath)
+		},
+	})
 
 	// ---------------------------------------------------------------
 	// Optional plugin flags:
@@ -203,38 +196,6 @@ func main() {
 		Priority: 999, // execute as latest as possible to allow users to provide their own route
 	})
 
-	app.OnRecordAfterCreateSuccess().BindFunc(func(e *core.RecordEvent) error {
-		// e.App
-		// e.Record
-
-		// data := e.Record.FieldsData()
-		// record := core.NewRecord(e.Record.Collection())
-		// for key, value := range data {
-		// 	if key == "" {
-		// 		fmt.Println(value)
-		// 		continue
-		// 	}
-		// 	if key == "id" {
-		// 		value = security.RandomString(15)
-		// 	}
-		// 	record.Set(key, value)
-		// }
-
-		// err := e.App.SaveNoValidate(record)
-		// if err != nil {
-		// 	fmt.Println(err)
-		// }
-
-		// e.App.DB().Insert(e.Record.Collection().Name, )
-		return e.Next()
-	})
-
-	app.OnRecordCreate().BindFunc(func(e *core.RecordEvent) error {
-		// e.App
-		// e.Record
-		fmt.Println(e.Record.Id)
-		return e.Next()
-	})
 
 	if err := app.Start(); err != nil {
 		log.Fatal(err)

@@ -9,6 +9,11 @@ require (
 )
 
 require (
+	github.com/antlr4-go/antlr/v4 v4.13.0 // indirect
+	github.com/libsql/sqlite-antlr4-parser v0.0.0-20240327125255-dbf53b6cbf06 // indirect
+)
+
+require (
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
 	github.com/disintegration/imaging v1.6.2 // indirect
 	github.com/dlclark/regexp2 v1.11.5 // indirect
@@ -34,6 +39,7 @@ require (
 	github.com/spf13/cast v1.7.1 // indirect
 	github.com/spf13/cobra v1.9.1 // indirect
 	github.com/spf13/pflag v1.0.6 // indirect
+	github.com/tursodatabase/go-libsql v0.0.0-20250401144753-0be9a6ec7849
 	golang.org/x/crypto v0.36.0 // indirect
 	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394 // indirect
 	golang.org/x/image v0.25.0 // indirect

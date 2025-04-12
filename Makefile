@@ -56,7 +56,7 @@ print-env:
 	@echo "  CC_TARGET: $(CC_TARGET)"
 
 run: build ## Run the application based on the current OS
-	./$(OUTPUT_DIR)/$(OUTPUT_BINARY)-$(GOOS)-$(GOARCH) serve
+	$(OUTPUT_DIR)/$(OUTPUT_BINARY)-$(GOOS)-$(GOARCH) serve
 
 check-deps: ## Check if required dependencies (Zig and Go) are installed
 	@if [ -z "$(shell which zig)" ]; then \
@@ -91,12 +91,7 @@ check_and_create_dir: ## Check if the output directory exists, and create it if 
 EXTLDFLAGS_DARWIN=-static -lc -lunwind
 EXTLDFLAGS_LINUX=-static -lc -lunwind -fsanitize=undefined
 
-build: ## Build the application for the specified target or will default to the current OS
-	@if [ ! -d "$(OUTPUT_DIR)" ]; then \
-        $(call print_warn,Directory '$(OUTPUT_DIR)' does not exist. Creating it now...); \
-        mkdir -p $(OUTPUT_DIR); \
-        $(call print_success,Directory '$(OUTPUT_DIR)' created.); \
-    fi
+build: check_and_create_dir ## Build the application for the specified target or will default to the current OS
 	@$(call print_info,Building Go for $(GOOS)-$(GOARCH)...using $(shell which cc)); \
 	if go build -o "$(OUTPUT_DIR)/$(OUTPUT_BINARY)-$(GOOS)-$(GOARCH)" main.go; then \
         $(call print_success,Build successful. Output binary: $(OUTPUT_DIR)/$(OUTPUT_BINARY)-$(GOOS)-$(GOARCH)); \
@@ -105,7 +100,7 @@ build: ## Build the application for the specified target or will default to the 
         exit 1; \
     fi; \
 
-zig-build: ## Build the application using Zig (use this for cross-compilation)
+zig-build: check_and_create_dir ## Build the application using Zig (use this for cross-compilation)
 	@if [ -z "$(shell which zig)" ]; then \
 		$(call print_error,"Zig not found. Please install Zig first."); \
     	$(call print_warn,"You can install Zig using the command: make install-zig"); \
@@ -147,6 +142,7 @@ build-all:
 	@$(MAKE) darwin-arm
 	@$(call print_success,"All platforms built successfully at $(OUTPUT_DIR)")
 	@$(call print_success,"Output binaries:")
+
 # Docker-related variables
 DOCKER_IMAGE_NAME=pocketbase-libsql
 DOCKER_TAG=latest

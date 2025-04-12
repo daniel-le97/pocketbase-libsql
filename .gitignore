@@ -184,3 +184,4 @@ my-go-app-*
 
 .env
 
+pb_migrations/

@@ -1,0 +1,16 @@
+FROM debian:bullseye-slim
+
+WORKDIR /root/
+
+LABEL org.opencontainers.image.source="https://github.com/daniel-le97/pocketbase-libsql"
+
+# Accept the binary name as a build argument
+ARG BINARY
+COPY ./dist/build/${BINARY} ./main
+
+RUN chmod +x ./main
+
+EXPOSE 8090
+ENV PORT=8090
+
+CMD ["sh", "-c", "./main serve --http=0.0.0.0:${PORT}"]

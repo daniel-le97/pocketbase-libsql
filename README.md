@@ -138,3 +138,5 @@ Available targets:
 currently cross-compiling for darwin and linux only seems to work on a mac device
 
 this does not work for windows yet, as libsql doesnt target it yet check [go-libsql](https://github.com/tursodatabase/go-libsql) for details
+
+docker buildx build --platform darwin/arm64 --build-arg BINARY=pb-darwin-arm64 -f Dockerfile.template -t pocketbase-libsql:darwin-arm64 . --load

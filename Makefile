@@ -49,11 +49,14 @@ help:
 	@echo "$(COLOR_YELLOW)Available targets:$(COLOR_RESET)"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "$(COLOR_BLUE) %-20s$(COLOR_RESET) $(COLOR_WHITE)%s$(COLOR_RESET)\n", $$1, $$2}'
 
-print-env:
-	@echo "Environment Variables:"
-	@echo "  GOOS: $(GOOS)"
-	@echo "  GOARCH: $(GOARCH)"
-	@echo "  CC_TARGET: $(CC_TARGET)"
+patch-go-libsql: ## Patch go-libsql for darwin_amd64
+	@echo "$(COLOR_YELLOW)Copying $(CURDIR)/lib/darwin_amd64 to $(shell go list -m -f '{{.Dir}}' github.com/tursodatabase/go-libsql)/lib/...$(COLOR_RESET)"
+	@if cp -r $(CURDIR)/lib/darwin_amd64 $(shell go list -m -f '{{.Dir}}' github.com/tursodatabase/go-libsql)/lib/; then \
+        $(call print_success,"lib/darwin_amd64 copied successfully."); \
+    else \
+        $(call print_error,"Failed to copy lib/darwin_amd64. Please try running this with sudo "sudo make patch-go-libsql"); \
+        exit 1; \
+    fi
 
 run: build ## Run the application based on the current OS
 	$(OUTPUT_DIR)/$(OUTPUT_BINARY)-$(GOOS)-$(GOARCH) serve
@@ -80,16 +83,50 @@ install-zig: ## Install Zig using Go's package manager
         zvm install 0.14.0; \
     fi
 
-check_and_create_dir: ## Check if the output directory exists, and create it if necessary
+remove-build-dir:
+	@if [ -d "$(OUTPUT_DIR)" ]; then \
+		$(call print_warn,Directory '$(OUTPUT_DIR)' exists. Removing it now...); \
+		rm -rf $(OUTPUT_DIR); \
+		$(call print_success,Directory '$(OUTPUT_DIR)' removed.); \
+	fi
+
+check_and_create_dir:
 	@if [ ! -d "$(OUTPUT_DIR)" ]; then \
         $(call print_warn,Directory '$(OUTPUT_DIR)' does not exist. Creating it now...); \
         mkdir -p $(OUTPUT_DIR); \
         $(call print_success,Directory '$(OUTPUT_DIR)' created.); \
     fi
 
+# Define variables for the release
+GITHUB_REPO=$(GITHUB_USERNAME)/$(DOCKER_IMAGE_NAME)  # Replace with your GitHub username/repo
+RELEASE_VERSION=$(shell git describe --tags --abbrev=0)-$(shell date +%Y%m%d%H%M%S)
+RELEASE_FILES=$(wildcard $(OUTPUT_DIR)/*)
 
-EXTLDFLAGS_DARWIN=-static -lc -lunwind
+release: build-all ## Create a GitHub release and upload binaries
+	@$(call print_info,"logging into GitHub...")
+	@if gh auth login --with-token < $(GITHUB_TOKEN); then \
+		$(call print_success,"Logged in to GitHub successfully."); \
+	else \
+		$(call print_error,"Failed to log in to GitHub. Please check your token."); \
+		exit 1; \
+	fi
+	@$(call print_info,"Creating GitHub release $(RELEASE_VERSION)...")
+	@if gh release create $(RELEASE_VERSION) $(RELEASE_FILES) --repo $(GITHUB_REPO) --title "Release $(RELEASE_VERSION)" --notes "Automated release of binaries."; then \
+        $(call print_success,"Release $(RELEASE_VERSION) created successfully."); \
+    else \
+        $(call print_error,"Failed to create release. Please check the logs."); \
+        exit 1; \
+    fi
+
+
+EXTLDFLAGS_DARWIN=-lc -lunwind -fsanitize=undefined \
+    -I$(shell xcrun --sdk macosx --show-sdk-path)/usr/include \
+    -L$(shell xcrun --sdk macosx --show-sdk-path)/usr/lib \
+    -F$(shell xcrun --sdk macosx --show-sdk-path)/System/Library/Frameworks \
+
 EXTLDFLAGS_LINUX=-static -lc -lunwind -fsanitize=undefined
+
+CGO_CFLAGS=-I$(shell go list -m -f '{{.Dir}}' github.com/tursodatabase/go-libsql)/lib
 
 build: check_and_create_dir ## Build the application for the specified target or will default to the current OS
 	@$(call print_info,Building Go for $(GOOS)-$(GOARCH)...using $(shell which cc)); \
@@ -113,9 +150,9 @@ zig-build: check_and_create_dir ## Build the application using Zig (use this for
 	fi; \
 	$(call print_info,"Building with Zig $(shell zig version) for $(GOOS)-$(GOARCH)..."); \
 	$(call print_info,"Building for $(GOOS)-$(GOARCH)...using $(shell which zig)"); \
-	export CC="zig cc -target $(CC_TARGET)"; \
-	export CXX="zig c++ -target $(CC_TARGET)"; \
-	export CGO_CFLAGS="-I/${GOMODCACHE}/github.com/tursodatabase/go-libsql@v0.0.0-20241113154718-293fe7f21b08"; \
+	export CC="zig cc -target $(CC_TARGET) -isysroot /usr/local/include"; \
+	export CXX="zig c++ -target $(CC_TARGET) -isysroot /usr/local/include"; \
+	export CGO_CFLAGS="$(CGO_CFLAGS)"; \
 	export CGO_ENABLED=1; \
 	if go build -ldflags "-s -w -extldflags '$$EXTLDFLAGS'" -o "$(OUTPUT_DIR)/$(OUTPUT_BINARY)-$(GOOS)-$(GOARCH)" main.go; then \
 		$(call print_success,"Build successful. Output binary: $(OUTPUT_DIR)/$(OUTPUT_BINARY)-$(GOOS)-$(GOARCH)"); \
@@ -124,22 +161,27 @@ zig-build: check_and_create_dir ## Build the application using Zig (use this for
 		exit 1; \
 	fi; \
 
+
 linux-arm: ## Build the application for Linux ARM64
 	@$(MAKE) zig-build GOOS=linux GOARCH=arm64 CC_TARGET=aarch64-linux-gnu
 linux-amd: ## Build the application for Linux AMD64
 	@$(MAKE) zig-build GOOS=linux GOARCH=amd64 CC_TARGET=x86_64-linux-gnu
-darwin-amd: ## Build the application for macOS AMD64
-	@$(MAKE) zig-build GOOS=darwin GOARCH=amd64 CC_TARGET=x86_64-darwin
+darwin-amd: ## Build the application for macOS AMD64 (unsupported for now)
+	@if [ ! -d "$(shell go list -m -f '{{.Dir}}' github.com/tursodatabase/go-libsql)/lib/darwin_amd64/" ]; then \
+        $(call print_warn,Directory '$(shell go list -m -f '{{.Dir}}' github.com/tursodatabase/go-libsql)/lib/darwin_amd64/' does not exist.); \
+        $(call print_warn, please run "sudo make patch-go-libsql".); \
+    fi
+	@$(MAKE) zig-build GOOS=darwin GOARCH=amd64 CC_TARGET=x86_64-macos
 darwin-arm: ## Build the application for macOS ARM64
 	@$(MAKE) zig-build GOOS=darwin GOARCH=arm64 CC_TARGET=aarch64-macos
 
 
-build-all:
+build-all: remove-build-dir check_and_create_dir ## Build the application for all supported platforms (Linux ARM64, Linux AMD64, macOS ARM64)
 	@$(call print_info,"Building for all platforms...")
 	@$(MAKE) linux-amd
 	@$(MAKE) linux-arm
-	@$(MAKE) darwin-amd
 	@$(MAKE) darwin-arm
+	@$(MAKE) darwin-amd
 	@$(call print_success,"All platforms built successfully at $(OUTPUT_DIR)")
 	@$(call print_success,"Output binaries:")
 
@@ -149,8 +191,18 @@ DOCKER_TAG=latest
 DOCKER_COMPOSE_FILE=docker-compose.yml
 DOCKER_REGISTRY=ghcr.io
 
+
+docker-build-all: ## Build and push Docker images for all architectures
+	@$(MAKE) docker-build ARCH=linux/arm64 BINARY=pb-linux-arm64
+	@$(MAKE) docker-build ARCH=linux/amd64 BINARY=pb-linux-amd64
+
+docker-build: ## Build a Docker image for a specific architecture (this copies the binary into the image)
+	@echo "$(COLOR_BLUE)Building Docker image for $(ARCH) using $(BINARY) with Dockerfile.template...$(COLOR_RESET)"
+	@echo "Command: docker buildx build --platform $(ARCH) --build-arg BINARY=$(BINARY) -f Dockerfile.template -t $(DOCKER_IMAGE_NAME):$(subst /,-,$(ARCH)) . --load"
+    docker buildx build --platform $(ARCH) --build-arg BINARY=$(BINARY) -f Dockerfile.template -t $(DOCKER_IMAGE_NAME):$(subst /,-,$(ARCH)) . --load
+
 # Build a Docker image
-docker-build: ## Build the Docker image
+build-docker: ## Build the Docker image (this builds the binary within the image)
 	@echo "$(COLOR_BLUE)Building Docker image $(DOCKER_IMAGE_NAME):$(DOCKER_TAG)...$(COLOR_RESET)"
 	@if docker build -t $(DOCKER_REGISTRY)/$(GITHUB_USERNAME)/$(DOCKER_IMAGE_NAME):$(DOCKER_TAG) .; then \
         echo "$(COLOR_GREEN)Docker image built successfully: $(DOCKER_REGISTRY)/$(GITHUB_USERNAME)/$(DOCKER_IMAGE_NAME):$(DOCKER_TAG)$(COLOR_RESET)"; \

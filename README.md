@@ -116,17 +116,21 @@ please note this will run "./dist/build/pb-$(GOOS)-$(GOARCH) serve".
 
 ```
 Available targets:
+ patch-go-libsql      Patch go-libsql for darwin_amd64
  run                  Run the application based on the current OS
  check-deps           Check if required dependencies (Zig and Go) are installed
- install-zig          Install Zig using ZVM (a Zig version manager written in Go)
- check_and_create_dir Check if the output directory exists, and create it if necessary
- build                Build the application for the specified target or will default to the current OS
+ install-zig          Install Zig using ZVM
+ release              Create a GitHub release and upload binaries
+ build                Build the application for the current OS using the default CC compiler
  zig-build            Build the application using Zig (use this for cross-compilation)
  linux-arm            Build the application for Linux ARM64
  linux-amd            Build the application for Linux AMD64
  darwin-amd           Build the application for macOS AMD64
  darwin-arm           Build the application for macOS ARM64
- docker-build         Build the Docker image
+ build-all            Build the application for all supported platforms
+ docker-build-all     Build and push Docker images for all architectures
+ docker-build         Build a Docker image for a specific architecture (this copies the binary into the image)
+ build-docker         Build the Docker image (this builds the binary within the image)
  docker-compose-up    Start services using Docker Compose
  docker-compose-down  Stop services using Docker Compose
  docker-compose-logs  View logs from Docker Compose services
@@ -138,5 +142,3 @@ Available targets:
 currently cross-compiling for darwin and linux only seems to work on a mac device
 
 this does not work for windows yet, as libsql doesnt target it yet check [go-libsql](https://github.com/tursodatabase/go-libsql) for details
-
-docker buildx build --platform darwin/arm64 --build-arg BINARY=pb-darwin-arm64 -f Dockerfile.template -t pocketbase-libsql:darwin-arm64 . --load

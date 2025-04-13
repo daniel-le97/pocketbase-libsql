@@ -73,7 +73,7 @@ check-deps: ## Check if required dependencies (Zig and Go) are installed
         echo "Go is already installed"; \
     fi
 
-install-zig: ## Install Zig using Go's package manager
+install-zig: ## Install Zig using ZVM
 	@if [ -z "$(shell which go)" ]; then \
         $(call print_error,"Go not found, please check https://go.dev/dl/"); \
 		exit 1; \
@@ -103,13 +103,6 @@ RELEASE_VERSION=$(shell git describe --tags --abbrev=0)-$(shell date +%Y%m%d%H%M
 RELEASE_FILES=$(wildcard $(OUTPUT_DIR)/*)
 
 release: build-all ## Create a GitHub release and upload binaries
-	@$(call print_info,"logging into GitHub...")
-	@if gh auth login --with-token < $(GITHUB_TOKEN); then \
-		$(call print_success,"Logged in to GitHub successfully."); \
-	else \
-		$(call print_error,"Failed to log in to GitHub. Please check your token."); \
-		exit 1; \
-	fi
 	@$(call print_info,"Creating GitHub release $(RELEASE_VERSION)...")
 	@if gh release create $(RELEASE_VERSION) $(RELEASE_FILES) --repo $(GITHUB_REPO) --title "Release $(RELEASE_VERSION)" --notes "Automated release of binaries."; then \
         $(call print_success,"Release $(RELEASE_VERSION) created successfully."); \
@@ -128,7 +121,7 @@ EXTLDFLAGS_LINUX=-static -lc -lunwind -fsanitize=undefined
 
 CGO_CFLAGS=-I$(shell go list -m -f '{{.Dir}}' github.com/tursodatabase/go-libsql)/lib
 
-build: check_and_create_dir ## Build the application for the specified target or will default to the current OS
+build: check_and_create_dir ## Build the application for the current OS using the default CC compiler
 	@$(call print_info,Building Go for $(GOOS)-$(GOARCH)...using $(shell which cc)); \
 	if go build -o "$(OUTPUT_DIR)/$(OUTPUT_BINARY)-$(GOOS)-$(GOARCH)" main.go; then \
         $(call print_success,Build successful. Output binary: $(OUTPUT_DIR)/$(OUTPUT_BINARY)-$(GOOS)-$(GOARCH)); \
@@ -166,17 +159,18 @@ linux-arm: ## Build the application for Linux ARM64
 	@$(MAKE) zig-build GOOS=linux GOARCH=arm64 CC_TARGET=aarch64-linux-gnu
 linux-amd: ## Build the application for Linux AMD64
 	@$(MAKE) zig-build GOOS=linux GOARCH=amd64 CC_TARGET=x86_64-linux-gnu
-darwin-amd: ## Build the application for macOS AMD64 (unsupported for now)
+darwin-amd: ## Build the application for macOS AMD64
 	@if [ ! -d "$(shell go list -m -f '{{.Dir}}' github.com/tursodatabase/go-libsql)/lib/darwin_amd64/" ]; then \
         $(call print_warn,Directory '$(shell go list -m -f '{{.Dir}}' github.com/tursodatabase/go-libsql)/lib/darwin_amd64/' does not exist.); \
         $(call print_warn, please run "sudo make patch-go-libsql".); \
+		exit 1; \
     fi
 	@$(MAKE) zig-build GOOS=darwin GOARCH=amd64 CC_TARGET=x86_64-macos
 darwin-arm: ## Build the application for macOS ARM64
 	@$(MAKE) zig-build GOOS=darwin GOARCH=arm64 CC_TARGET=aarch64-macos
 
 
-build-all: remove-build-dir check_and_create_dir ## Build the application for all supported platforms (Linux ARM64, Linux AMD64, macOS ARM64)
+build-all: remove-build-dir check_and_create_dir ## Build the application for all supported platforms
 	@$(call print_info,"Building for all platforms...")
 	@$(MAKE) linux-amd
 	@$(MAKE) linux-arm

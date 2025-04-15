@@ -126,14 +126,12 @@ package: ## Create .zip and .tar.gz archives for each binary
         $(call print_success,"Packaged $$binary into $$base.zip and $$base.tar.gz"); \
     done
 
-
 EXTLDFLAGS_DARWIN=-lc -lunwind -fsanitize=undefined \
-    -I$(shell xcrun --sdk macosx --show-sdk-path)/usr/include \
-    -L$(shell xcrun --sdk macosx --show-sdk-path)/usr/lib \
-    -F$(shell xcrun --sdk macosx --show-sdk-path)/System/Library/Frameworks \
-
+	-I$(shell [ "$(GOOS)" = "darwin" ] && xcrun --sdk macosx --show-sdk-path)/usr/include \
+	-L$(shell [ "$(GOOS)" = "darwin" ] && xcrun --sdk macosx --show-sdk-path)/usr/lib \
+	-F$(shell [ "$(GOOS)" = "darwin" ] && xcrun --sdk macosx --show-sdk-path)/System/Library/Frameworks \
+	
 EXTLDFLAGS_LINUX=-static -lc -lunwind -fsanitize=undefined
-
 CGO_CFLAGS=-I$(shell go list -m -f '{{.Dir}}' github.com/tursodatabase/go-libsql)/lib
 
 build: check_and_create_dir ## Build the application for the current OS using the default CC compiler
@@ -180,11 +178,12 @@ darwin-arm: ## Build the application for macOS ARM64
 	@$(MAKE) zig-build GOOS=darwin GOARCH=arm64 CC_TARGET=aarch64-macos
 
 
-build-all: patch-go-libsql remove-build-dir check_and_create_dir ## Build the application for all supported platforms
+build-all: remove-build-dir check_and_create_dir ## Build the application for all supported platforms
 	@$(call print_info,"Building for all platforms...")
 	@$(MAKE) linux-amd
 	@$(MAKE) linux-arm
 	@if [ "$(GOOS)" = "darwin" ]; then \
+		$(MAKE) patch-go-libsql; \
 		$(MAKE) darwin-arm; \
 		$(MAKE) darwin-amd; \
 	fi
@@ -205,7 +204,12 @@ docker-build-all: ## Build and push Docker images for all architectures
 docker-build: ## Build a Docker image for a specific architecture (this copies the binary into the image)
 	@echo "$(COLOR_BLUE)Building Docker image for $(ARCH) using $(BINARY) with Dockerfile.template...$(COLOR_RESET)"
 	@echo "Command: docker buildx build --platform $(ARCH) --build-arg BINARY=$(BINARY) -f Dockerfile.template -t $(DOCKER_IMAGE_NAME):$(subst /,-,$(ARCH)) . --load"
-    docker buildx build --platform $(ARCH) --build-arg BINARY=$(BINARY) -f Dockerfile.template -t $(DOCKER_IMAGE_NAME):$(subst /,-,$(ARCH)) . --load
+	@if docker buildx build --platform $(ARCH) --build-arg BINARY=$(BINARY) -f Dockerfile.template -t $(DOCKER_IMAGE_NAME):$(subst /,-,$(ARCH)) . --load; then \
+		echo "$(COLOR_GREEN)Docker image built successfully: $(DOCKER_IMAGE_NAME):$(subst /,-,$(ARCH))$(COLOR_RESET)"; \
+	else \
+		echo "$(COLOR_RED)Failed to build Docker image. Please check the logs.$(COLOR_RESET)"; \
+		exit 1; \
+	fi
 
 # Build a Docker image
 build-docker: ## Build the Docker image (this builds the binary within the image)

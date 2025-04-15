@@ -1,7 +1,6 @@
 package main
 
 import (
-	"time"
 	"database/sql"
 	"fmt"
 	"log"
@@ -9,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/joho/godotenv"
 	"github.com/pocketbase/dbx"
@@ -56,10 +56,9 @@ func Open(driverName, dsn string) (*dbx.DB, error) {
 		return nil, err
 	}
 
-	fmt.Println("connecting to turso replica")
-
 	syncInterval := time.Second
-	if authToken == "" {
+	if authToken == "" || strings.Contains(primaryUrl, "http") {
+		fmt.Println("connecting to libsql replica")
 		connector, err := libsql.NewEmbeddedReplicaConnector(dsn, primaryUrl,
 			libsql.WithSyncInterval(syncInterval))
 		if err != nil {
@@ -70,6 +69,7 @@ func Open(driverName, dsn string) (*dbx.DB, error) {
 		return dbx.NewFromDB(sqlDB, driverName), nil
 	}
 
+	fmt.Println("connecting to turso replica")
 	connector, err := libsql.NewEmbeddedReplicaConnector(dsn, primaryUrl,
 		libsql.WithAuthToken(authToken),
 		libsql.WithSyncInterval(syncInterval))
@@ -99,6 +99,7 @@ func main() {
 			return core.DefaultDBConnect(dbPath)
 		},
 	})
+
 
 	// ---------------------------------------------------------------
 	// Optional plugin flags:
@@ -195,7 +196,6 @@ func main() {
 		},
 		Priority: 999, // execute as latest as possible to allow users to provide their own route
 	})
-
 
 	if err := app.Start(); err != nil {
 		log.Fatal(err)

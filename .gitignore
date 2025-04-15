@@ -186,4 +186,9 @@ my-go-app-*
 
 pb_migrations/
 
-libsql/
+libsql/*
+lib/libsql/
+
+libsql-c/
+
+targets/

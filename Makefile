@@ -50,12 +50,15 @@ help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "$(COLOR_BLUE) %-20s$(COLOR_RESET) $(COLOR_WHITE)%s$(COLOR_RESET)\n", $$1, $$2}'
 
 patch-go-libsql: ## Patch go-libsql for darwin_amd64
-	@echo "$(COLOR_YELLOW)Copying $(CURDIR)/lib/darwin_amd64 to $(shell go list -m -f '{{.Dir}}' github.com/tursodatabase/go-libsql)/lib/...$(COLOR_RESET)"
-	@if cp -r $(CURDIR)/lib/darwin_amd64 $(shell go list -m -f '{{.Dir}}' github.com/tursodatabase/go-libsql)/lib/; then \
-        $(call print_success,"lib/darwin_amd64 copied successfully."); \
-    else \
-        $(call print_error,"Failed to copy lib/darwin_amd64. Please try running this with sudo "sudo make patch-go-libsql"); \
-        exit 1; \
+	@$(call print_info,"Checking if lib/darwin_amd64 exists in go-libsql...")
+	@if [ ! -d "$(shell go list -m -f '{{.Dir}}' github.com/tursodatabase/go-libsql)/lib/darwin_amd64" ]; then \
+        $(call print_warn,"Directory '$(shell go list -m -f '{{.Dir}}' github.com/tursodatabase/go-libsql)/lib/darwin_amd64' does not exist. Patching..."); \
+        if sudo cp -r $(CURDIR)/lib/darwin_amd64 $(shell go list -m -f '{{.Dir}}' github.com/tursodatabase/go-libsql)/lib/; then \
+            $(call print_success,"lib/darwin_amd64 copied successfully."); \
+        else \
+            $(call print_error,"Failed to copy lib/darwin_amd64. Please try running this with sudo 'make patch-go-libsql'."); \
+            exit 1; \
+        fi; \
     fi
 
 run: build ## Run the application based on the current OS
@@ -63,14 +66,17 @@ run: build ## Run the application based on the current OS
 
 check-deps: ## Check if required dependencies (Zig and Go) are installed
 	@if [ -z "$(shell which zig)" ]; then \
-        echo "Zig not found, please check https://github.com/ziglang/zig/wiki/Install-Zig-from-a-Package-Manager"; \
+		$(call print_error,Zig not found. Please install Zig first); \
+		$(call print_info,You can install Zig using the command: make install-zig); \
+		$(call print_info, or please check https://github.com/ziglang/zig/wiki/Install-Zig-from-a-Package-Manager); \
     else \
-        echo "Zig is already installed"; \
+        $(call print_success, zig is installed at $(shell which zig)); \
     fi
 	@if [ -z "$(shell which go)" ]; then \
-        echo "Go not found, please check https://go.dev/dl/"; \
+		$(call print_error, Go not found); \
+		$(call print_info, please check https://go.dev/dl/ for installation instructions); \
     else \
-        echo "Go is already installed"; \
+        $(call print_success, Go is installed at $(shell which go)); \
     fi
 
 install-zig: ## Install Zig using ZVM
@@ -111,6 +117,15 @@ release: build-all ## Create a GitHub release and upload binaries
         exit 1; \
     fi
 
+package: ## Create .zip and .tar.gz archives for each binary
+	@$(call print_info,"Packaging binaries into .zip and .tar.gz archives...")
+	@for binary in $(wildcard $(OUTPUT_DIR)/*); do \
+        base=$$(basename $$binary); \
+        zip "$(OUTPUT_DIR)/$$base.zip" "$$binary" && \
+        tar -czf "$(OUTPUT_DIR)/$$base.tar.gz" -C "$(OUTPUT_DIR)" "$$base" && \
+        $(call print_success,"Packaged $$binary into $$base.zip and $$base.tar.gz"); \
+    done
+
 
 EXTLDFLAGS_DARWIN=-lc -lunwind -fsanitize=undefined \
     -I$(shell xcrun --sdk macosx --show-sdk-path)/usr/include \
@@ -143,8 +158,8 @@ zig-build: check_and_create_dir ## Build the application using Zig (use this for
 	fi; \
 	$(call print_info,"Building with Zig $(shell zig version) for $(GOOS)-$(GOARCH)..."); \
 	$(call print_info,"Building for $(GOOS)-$(GOARCH)...using $(shell which zig)"); \
-	export CC="zig cc -target $(CC_TARGET) -isysroot /usr/local/include"; \
-	export CXX="zig c++ -target $(CC_TARGET) -isysroot /usr/local/include"; \
+	export CC="zig cc -target $(CC_TARGET)"; \
+	export CXX="zig c++ -target $(CC_TARGET)"; \
 	export CGO_CFLAGS="$(CGO_CFLAGS)"; \
 	export CGO_ENABLED=1; \
 	if go build -ldflags "-s -w -extldflags '$$EXTLDFLAGS'" -o "$(OUTPUT_DIR)/$(OUTPUT_BINARY)-$(GOOS)-$(GOARCH)" main.go; then \
@@ -159,23 +174,20 @@ linux-arm: ## Build the application for Linux ARM64
 	@$(MAKE) zig-build GOOS=linux GOARCH=arm64 CC_TARGET=aarch64-linux-gnu
 linux-amd: ## Build the application for Linux AMD64
 	@$(MAKE) zig-build GOOS=linux GOARCH=amd64 CC_TARGET=x86_64-linux-gnu
-darwin-amd: ## Build the application for macOS AMD64
-	@if [ ! -d "$(shell go list -m -f '{{.Dir}}' github.com/tursodatabase/go-libsql)/lib/darwin_amd64/" ]; then \
-        $(call print_warn,Directory '$(shell go list -m -f '{{.Dir}}' github.com/tursodatabase/go-libsql)/lib/darwin_amd64/' does not exist.); \
-        $(call print_warn, please run "sudo make patch-go-libsql".); \
-		exit 1; \
-    fi
+darwin-amd: patch-go-libsql ## Build the application for macOS AMD64
 	@$(MAKE) zig-build GOOS=darwin GOARCH=amd64 CC_TARGET=x86_64-macos
 darwin-arm: ## Build the application for macOS ARM64
 	@$(MAKE) zig-build GOOS=darwin GOARCH=arm64 CC_TARGET=aarch64-macos
 
 
-build-all: remove-build-dir check_and_create_dir ## Build the application for all supported platforms
+build-all: patch-go-libsql remove-build-dir check_and_create_dir ## Build the application for all supported platforms
 	@$(call print_info,"Building for all platforms...")
 	@$(MAKE) linux-amd
 	@$(MAKE) linux-arm
-	@$(MAKE) darwin-arm
-	@$(MAKE) darwin-amd
+	@if [ "$(GOOS)" = "darwin" ]; then \
+		$(MAKE) darwin-arm; \
+		$(MAKE) darwin-amd; \
+	fi
 	@$(call print_success,"All platforms built successfully at $(OUTPUT_DIR)")
 	@$(call print_success,"Output binaries:")
 

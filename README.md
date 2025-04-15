@@ -4,7 +4,7 @@ this is a go project that uses pocketbase as a framework, and uses libsql as a r
 
 libsql allows us to have an replicated embeded database, meaning we can deploy multiple instances pointing to the same libsql server, and they will all be in sync with each other.
 
-## ENV variables
+## Env variables
  * TURSO_URL
     - if the url is empty, it will fallback to using libsqls local driver ( sqlite )
     - if the url starts with "libsql" using the libsql protocol it will assume the URL is from the turso platform in which case TURSO_AUTH_TOKEN must be set
@@ -12,20 +12,18 @@ libsql allows us to have an replicated embeded database, meaning we can deploy m
  * TURSO_AUTH_TOKEN
     - only required if using turso, is not required to be set when using libsql server or the local file driver
 
-## Prerequisites
 
-### Local Development
+## Local Development
 
+### dependencies
 To build and run the project locally, you need to have the following installed:
 
 - [Go](https://golang.org/doc/install) (version 1.23.4 or later)
 - [Zig](https://ziglang.org/download/) (version 0.13.0 or later) or another C compiler
 
 
-## Installation
 
-### Local Installation
-
+### Installation
 1. Clone the repository:
 
     ```sh
@@ -41,20 +39,49 @@ To build and run the project locally, you need to have the following installed:
 
 3. set enviroment variables accordingly
     ```sh
-    cp .env.example .env
+    cp .env.dev .env
     ```
 
-4. build:
-
-    this will build ./dist/build/pb-linux-amd64
+### Building
+- Building using default cc compiler (which cc)
+    ```sh
+    make build
+    ```
+- Build using zig for linux-amd64
     ```sh
     make linux-amd
     ```
-    this will build ./dist/build/pb-linux-arm64
+- Build using zig for linux-arm64
     ```sh
     make linux-arm
     ```
-### Docker Installation
+- Build using zig for darwin-arm64
+    ```sh
+    make darwin-arm
+    ```
+- Build using zig for darwin-amd64
+    - you will need to run this once
+        ```sh
+        make patch-go-libsql
+        ```
+    ```sh
+    make darwin-amd
+    ```
+- Build for all platforms (only works on macos - adjust for linux)
+    ```sh
+    make build-all
+    ```
+
+### Running the app
+
+To run the project locally, use the following command:
+
+```sh
+make run
+```
+this will run "make build" before executing it
+
+## Docker
 
 
 If you prefer to use Docker, ensure you have Docker installed on your machine. You can download and install Docker from [here](https://www.docker.com/get-started).
@@ -76,7 +103,7 @@ If you prefer to use Docker, ensure you have Docker installed on your machine. Y
     docker run -d -p 8090:8090 --name pocketbase-libsql-container -e TURSO_URL=<your_turso_url> pocketbase-libsql
     ```
 
-## prebuilt docker image
+### prebuilt docker image
 you can use the prebuilt docker image from github container registry, you can pull it using the following command:
 
 ```sh
@@ -95,22 +122,10 @@ docker run -d -p 8090:8090 --name pocketbase-libsql-container -e TURSO_URL=<your
 
 or you can use the docker-compose file to run it with a local libsql server instance
 ### Docker compose
-1. this runs a self hosted libsql server instance and does not use turso
+- this runs a self hosted libsql server instance and does not use turso
     ```sh
     docker compose up -d
     ```
-
-## Usage
-
-### Local Usage
-
-To run the project locally, use the following command:
-
-```sh
-make run
-```
-
-please note this will run "./dist/build/pb-$(GOOS)-$(GOARCH) serve". 
 
 ## Makefile
 
@@ -141,4 +156,4 @@ Available targets:
 ## Notes
 currently cross-compiling for darwin and linux only seems to work on a mac device
 
-this does not work for windows yet, as libsql doesnt target it yet check [go-libsql](https://github.com/tursodatabase/go-libsql) for details
+this does not work for windows yet, as libsql doesn't target it yet check [go-libsql](https://github.com/tursodatabase/go-libsql) for details

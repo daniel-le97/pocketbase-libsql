@@ -5,13 +5,20 @@ this is a go project that uses pocketbase as a framework, and uses libsql as a r
 libsql allows us to have an replicated embeded database, meaning we can deploy multiple instances pointing to the same libsql server, and they will all be in sync with each other.
 
 ## Env variables
- * TURSO_URL
-    - if the url is empty, it will fallback to using libsqls local driver ( sqlite )
-    - if the url starts with "libsql" using the libsql protocol it will assume the URL is from the turso platform in which case TURSO_AUTH_TOKEN must be set
-    - you can use http/https urls for libsql server
- * TURSO_AUTH_TOKEN
-    - only required if using turso, is not required to be set when using libsql server or the local file driver
 
+### Production (.env.example)
+    * TURSO_URL
+        - if the url is empty, it will fallback to using libsql's local file driver
+        - if the url starts with "libsql" using the libsql protocol it will assume the URL is from the turso platform in which case TURSO_AUTH_TOKEN must be set
+        - you can use http/https urls for libsql server
+    * TURSO_AUTH_TOKEN
+        - only required if using turso, is not required to be set when using libsql server or the local file driver
+
+### Development (.env.dev)
+    * GITHUB_TOKEN
+    * GiTHUB_USERNAME
+        - used for creating releases and uploading binaries to github
+        - pushing images to ghcr.io
 
 ## Local Development
 

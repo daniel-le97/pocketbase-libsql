@@ -180,6 +180,8 @@ zig*
 data/*
 pb_data
 
+.vscode
+
 my-go-app-*
 
 .env
@@ -192,3 +194,5 @@ lib/libsql/
 libsql-c/
 
 targets/
+
+**/.DS_Store

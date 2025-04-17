@@ -1,12 +1,13 @@
-FROM debian:bullseye-slim
+FROM debian:bookworm-slim
 
 WORKDIR /root/
 
 LABEL org.opencontainers.image.source="https://github.com/daniel-le97/pocketbase-libsql"
 
 # Accept the binary name as a build argument
-ARG BINARY
-COPY ./dist/build/${BINARY} ./main
+
+COPY ./main ./main
+RUN touch .env
 
 RUN chmod +x ./main
 

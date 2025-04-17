@@ -3,6 +3,8 @@
 
 OUTPUT_BINARY=pb
 OUTPUT_DIR=./dist/build
+
+
 OS=$(shell go env GOOS)
 ARCH=$(shell go env GOARCH)
 GOOS=$(shell go env GOOS)
@@ -43,6 +45,8 @@ endef
 define print_warn
     echo "$(COLOR_YELLOW)[WARN] $(1)$(COLOR_RESET)"
 endef
+
+
 
 # Default target: Show help
 help:
@@ -106,7 +110,10 @@ check_and_create_dir:
 # Define variables for the release
 GITHUB_REPO=$(GITHUB_USERNAME)/$(DOCKER_IMAGE_NAME)  # Replace with your GitHub username/repo
 RELEASE_VERSION=$(shell git describe --tags --abbrev=0)-$(shell date +%Y%m%d%H%M%S)
-RELEASE_FILES=$(wildcard $(OUTPUT_DIR)/*)
+RELEASE_DIR=./dist/release
+RELEASE_FILES=$(wildcard $(RELEASE_DIR)/*)
+
+tester: build-all package
 
 release: build-all ## Create a GitHub release and upload binaries
 	@$(call print_info,"Creating GitHub release $(RELEASE_VERSION)...")
@@ -117,13 +124,17 @@ release: build-all ## Create a GitHub release and upload binaries
         exit 1; \
     fi
 
-package: ## Create .zip and .tar.gz archives for each binary
-	@$(call print_info,"Packaging binaries into .zip and .tar.gz archives...")
+package: ## Create .zip and .tar.gz archives for each binary and move them to RELEASE_DIR
+	@$(call print_info,"Packaging binaries into .tar.xz archives...")
+	@rm -rf $(RELEASE_DIR)/*
+	@mkdir -p $(RELEASE_DIR)
 	@for binary in $(wildcard $(OUTPUT_DIR)/*); do \
         base=$$(basename $$binary); \
-        zip "$(OUTPUT_DIR)/$$base.zip" "$$binary" && \
-        tar -czf "$(OUTPUT_DIR)/$$base.tar.gz" -C "$(OUTPUT_DIR)" "$$base" && \
-        $(call print_success,"Packaged $$binary into $$base.zip and $$base.tar.gz"); \
+        cp $$binary "$(OUTPUT_DIR)/pocketbase-libsql" && \
+        tar -cJf "$(RELEASE_DIR)/$$base.tar.xz" -C "$(OUTPUT_DIR)" "pocketbase-libsql" && \
+        echo "$$(sha256sum "$(RELEASE_DIR)/$$base.tar.xz" | awk '{print $$1}')  $$base.tar.xz" >> "$(RELEASE_DIR)/checksums.txt"; \
+        $(call print_success,"Packaged $$binary into $(RELEASE_DIR)/$$base.tar.xz with binary named pocketbase-libsql"); \
+        rm -f "$(OUTPUT_DIR)/pocketbase-libsql"; \
     done
 
 EXTLDFLAGS_DARWIN=-lc -lunwind -fsanitize=undefined \
@@ -180,13 +191,13 @@ darwin-arm: ## Build the application for macOS ARM64
 
 build-all: remove-build-dir check_and_create_dir ## Build the application for all supported platforms
 	@$(call print_info,"Building for all platforms...")
-	@$(MAKE) linux-amd
-	@$(MAKE) linux-arm
 	@if [ "$(GOOS)" = "darwin" ]; then \
 		$(MAKE) patch-go-libsql; \
 		$(MAKE) darwin-arm; \
 		$(MAKE) darwin-amd; \
 	fi
+	@$(MAKE) linux-amd
+	@$(MAKE) linux-arm
 	@$(call print_success,"All platforms built successfully at $(OUTPUT_DIR)")
 	@$(call print_success,"Output binaries:")
 
@@ -203,16 +214,18 @@ docker-build-all: ## Build and push Docker images for all architectures
 
 docker-build: ## Build a Docker image for a specific architecture (this copies the binary into the image)
 	@echo "$(COLOR_BLUE)Building Docker image for $(ARCH) using $(BINARY) with Dockerfile.template...$(COLOR_RESET)"
-	@echo "Command: docker buildx build --platform $(ARCH) --build-arg BINARY=$(BINARY) -f Dockerfile.template -t $(DOCKER_IMAGE_NAME):$(subst /,-,$(ARCH)) . --load"
-	@if docker buildx build --platform $(ARCH) --build-arg BINARY=$(BINARY) -f Dockerfile.template -t $(DOCKER_IMAGE_NAME):$(subst /,-,$(ARCH)) . --load; then \
+	cp $(OUTPUT_DIR)/$(BINARY) ./main
+	@echo "Command: docker buildx build --platform $(ARCH) -f Dockerfile.template -t $(DOCKER_IMAGE_NAME):$(subst /,-,$(ARCH)) . --load"
+	@if docker buildx build --platform $(ARCH) -f Dockerfile.template -t $(DOCKER_IMAGE_NAME):$(subst /,-,$(ARCH)) . --load; then \
 		echo "$(COLOR_GREEN)Docker image built successfully: $(DOCKER_IMAGE_NAME):$(subst /,-,$(ARCH))$(COLOR_RESET)"; \
 	else \
 		echo "$(COLOR_RED)Failed to build Docker image. Please check the logs.$(COLOR_RESET)"; \
 		exit 1; \
 	fi
+	@rm -f ./main
 
 # Build a Docker image
-build-docker: ## Build the Docker image (this builds the binary within the image)
+build-with-docker: ## Build the Docker image (this builds the binary within the image)
 	@echo "$(COLOR_BLUE)Building Docker image $(DOCKER_IMAGE_NAME):$(DOCKER_TAG)...$(COLOR_RESET)"
 	@if docker build -t $(DOCKER_REGISTRY)/$(GITHUB_USERNAME)/$(DOCKER_IMAGE_NAME):$(DOCKER_TAG) .; then \
         echo "$(COLOR_GREEN)Docker image built successfully: $(DOCKER_REGISTRY)/$(GITHUB_USERNAME)/$(DOCKER_IMAGE_NAME):$(DOCKER_TAG)$(COLOR_RESET)"; \
@@ -257,7 +270,7 @@ docker-login-ghcr: ## Log in to GitHub Container Registry
 
 docker-push-ghcr: docker-login-ghcr ## Push the Docker image to GitHub Container Registry
 	@$(call print_info,Pushing Docker image $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) to GHCR...)
-	@if docker push ghcr.io/$(GITHUB_USERNAME)/$(DOCKER_IMAGE_NAME):$(DOCKER_TAG); then \
+	@if docker push $(DOCKER_REGISTRY)/$(GITHUB_USERNAME)/$(DOCKER_IMAGE_NAME):$(DOCKER_TAG); then \
         $(call print_success,Docker image pushed successfully to ghcr.io/$(GITHUB_USERNAME)/$(DOCKER_IMAGE_NAME):$(DOCKER_TAG)); \
     else \
         $(call print_error,Failed to push Docker image to GHCR. Please check your credentials and network connection.); \

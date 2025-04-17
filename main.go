@@ -33,6 +33,11 @@ func init() {
 func Open(driverName, dsn string) (*dbx.DB, error) {
 	primaryUrl := os.Getenv("TURSO_URL")
 	authToken := os.Getenv("TURSO_AUTH_TOKEN")
+	if primaryUrl != "" {
+		if !strings.HasPrefix(primaryUrl, "libsql") || !strings.HasPrefix(primaryUrl, "http") {
+			return nil, fmt.Errorf("TURSO_URL must start with libsql:// or http(s)://")
+		}
+	}
 	if strings.Contains(primaryUrl, "libsql") {
 		if authToken == "" {
 			return nil, fmt.Errorf("TURSO_AUTH_TOKEN must not be empty when TURSO_URL is from the turso platform")
@@ -99,7 +104,6 @@ func main() {
 			return core.DefaultDBConnect(dbPath)
 		},
 	})
-
 
 	// ---------------------------------------------------------------
 	// Optional plugin flags:

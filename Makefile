@@ -109,13 +109,14 @@ check_and_create_dir:
 
 # Define variables for the release
 GITHUB_REPO=$(GITHUB_USERNAME)/$(DOCKER_IMAGE_NAME)  # Replace with your GitHub username/repo
-RELEASE_VERSION=$(shell git describe --tags --abbrev=0)-$(shell date +%Y%m%d%H%M%S)
+# RELEASE_VERSION=$(shell git describe --tags --abbrev=0)-$(shell date +%Y%m%d%H%M%S)
+RELEASE_VERSION=v1.0.0
 RELEASE_DIR=./dist/release
 RELEASE_FILES=$(wildcard $(RELEASE_DIR)/*)
 
 tester: build-all package
 
-release: build-all ## Create a GitHub release and upload binaries
+release: ## Create a GitHub release and upload binaries
 	@$(call print_info,"Creating GitHub release $(RELEASE_VERSION)...")
 	@if gh release create $(RELEASE_VERSION) $(RELEASE_FILES) --repo $(GITHUB_REPO) --title "Release $(RELEASE_VERSION)" --notes "Automated release of binaries."; then \
         $(call print_success,"Release $(RELEASE_VERSION) created successfully."); \
@@ -124,7 +125,7 @@ release: build-all ## Create a GitHub release and upload binaries
         exit 1; \
     fi
 
-package: ## Create .zip and .tar.gz archives for each binary and move them to RELEASE_DIR
+package: build-all ## Create .zip and .tar.gz archives for each binary and move them to RELEASE_DIR
 	@$(call print_info,"Packaging binaries into .tar.xz archives...")
 	@rm -rf $(RELEASE_DIR)/*
 	@mkdir -p $(RELEASE_DIR)
@@ -146,13 +147,28 @@ EXTLDFLAGS_LINUX=-static -lc -lunwind -fsanitize=undefined
 CGO_CFLAGS=-I$(shell go list -m -f '{{.Dir}}' github.com/tursodatabase/go-libsql)/lib
 
 build: check_and_create_dir ## Build the application for the current OS using the default CC compiler
-	@$(call print_info,Building Go for $(GOOS)-$(GOARCH)...using $(shell which cc)); \
-	if go build -o "$(OUTPUT_DIR)/$(OUTPUT_BINARY)-$(GOOS)-$(GOARCH)" main.go; then \
-        $(call print_success,Build successful. Output binary: $(OUTPUT_DIR)/$(OUTPUT_BINARY)-$(GOOS)-$(GOARCH)); \
+	@if [ -n "$(shell which zig)" ]; then \
+        if [ "$(GOOS)" = "linux" ] && [ "$(GOARCH)" = "amd64" ]; then \
+            $(MAKE) linux-amd; \
+        elif [ "$(GOOS)" = "linux" ] && [ "$(GOARCH)" = "arm64" ]; then \
+            $(MAKE) linux-arm; \
+        elif [ "$(GOOS)" = "darwin" ] && [ "$(GOARCH)" = "amd64" ]; then \
+            $(MAKE) darwin-amd; \
+        elif [ "$(GOOS)" = "darwin" ] && [ "$(GOARCH)" = "arm64" ]; then \
+            $(MAKE) darwin-arm; \
+        else \
+            $(call print_error,"Unsupported GOOS/GOARCH combination: $(GOOS)-$(GOARCH)"); \
+            exit 1; \
+        fi; \
     else \
-        $(call print_error,Build failed. Please check the logs.); \
-        exit 1; \
-    fi; \
+        $(call print_info,"Building Go for $(GOOS)-$(GOARCH)...using $(shell which cc)"); \
+        if go build -o "$(OUTPUT_DIR)/$(OUTPUT_BINARY)-$(GOOS)-$(GOARCH)" main.go; then \
+            $(call print_success,"Build successful. Output binary: $(OUTPUT_DIR)/$(OUTPUT_BINARY)-$(GOOS)-$(GOARCH)"); \
+        else \
+            $(call print_error,"Build failed. Please check the logs."); \
+            exit 1; \
+        fi; \
+    fi
 
 zig-build: check_and_create_dir ## Build the application using Zig (use this for cross-compilation)
 	@if [ -z "$(shell which zig)" ]; then \
@@ -166,7 +182,6 @@ zig-build: check_and_create_dir ## Build the application using Zig (use this for
 		EXTLDFLAGS="$(EXTLDFLAGS_LINUX)"; \
 	fi; \
 	$(call print_info,"Building with Zig $(shell zig version) for $(GOOS)-$(GOARCH)..."); \
-	$(call print_info,"Building for $(GOOS)-$(GOARCH)...using $(shell which zig)"); \
 	export CC="zig cc -target $(CC_TARGET)"; \
 	export CXX="zig c++ -target $(CC_TARGET)"; \
 	export CGO_CFLAGS="$(CGO_CFLAGS)"; \

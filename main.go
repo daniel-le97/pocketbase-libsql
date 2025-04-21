@@ -34,7 +34,7 @@ func Open(driverName, dsn string) (*dbx.DB, error) {
 	primaryUrl := os.Getenv("TURSO_URL")
 	authToken := os.Getenv("TURSO_AUTH_TOKEN")
 	if primaryUrl != "" {
-		if !strings.HasPrefix(primaryUrl, "libsql") || !strings.HasPrefix(primaryUrl, "http") {
+		if !strings.HasPrefix(primaryUrl, "libsql") && !strings.HasPrefix(primaryUrl, "http") {
 			return nil, fmt.Errorf("TURSO_URL must start with libsql:// or http(s)://")
 		}
 	}
@@ -46,7 +46,7 @@ func Open(driverName, dsn string) (*dbx.DB, error) {
 
 	// use sqlite driver when TURSO_URL is not set
 	if primaryUrl == "" {
-		fmt.Println("using sqlite driver")
+		fmt.Println("using local file driver")
 		db, err := sql.Open("libsql", "file:"+dsn)
 		if err != nil {
 			return nil, err
@@ -87,14 +87,22 @@ func Open(driverName, dsn string) (*dbx.DB, error) {
 	return dbx.NewFromDB(sqlDB, driverName), nil
 }
 
-func main() {
+func loadEnv() {
+	// check if .env file exists
+	if _, err := os.Stat(".env"); os.IsNotExist(err) {
+		return
+	}
+
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
 
 	godotenv.Read()
+}
 
+func main() {
+	loadEnv()
 	app := pocketbase.NewWithConfig(pocketbase.Config{
 		DBConnect: func(dbPath string) (*dbx.DB, error) {
 			if strings.Contains(dbPath, "data.db") {

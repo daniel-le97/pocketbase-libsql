@@ -15,7 +15,7 @@ RUN go mod download
 ARG ZIG_VERSION=0.13.0
 ARG ZIG_ARCH=x86_64
 
-RUN apt-get update && apt-get install -y wget unzip xz-utils \
+RUN apt-get update && apt-get install -y unzip xz-utils \
     && wget https://ziglang.org/download/${ZIG_VERSION}/zig-linux-${ZIG_ARCH}-${ZIG_VERSION}.tar.xz \
     && tar -xf zig-linux-${ZIG_ARCH}-${ZIG_VERSION}.tar.xz \
     && mv zig-linux-${ZIG_ARCH}-${ZIG_VERSION} /usr/local/zig \
@@ -46,7 +46,6 @@ LABEL org.opencontainers.image.source="https://github.com/daniel-le97/pocketbase
 
 # Copy the Pre-built binary file from the previous stage
 COPY --from=builder /app/main ./
-COPY --from=builder /app/.env ./
 # COPY --from=builder /app/pb_hooks ./pb_hooks
 # COPY --from=builder /app/pb_migrations ./pb_migrations
 # COPY --from=builder /app/pb_data ./pb_data/

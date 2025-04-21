@@ -3,7 +3,7 @@ services:
     # image: ghcr.io/tursodatabase/libsql-server:9241b00
     build:
       dockerfile: Dockerfile.libsql
-    platform: linux/amd64
+    platform: linux/arm64
     ports:
       - "8080:8080"
       - "5001:5001"
@@ -22,14 +22,13 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    platform: linux/amd64
     ports:
       - "8090:8090"
     depends_on:
       db:
         condition: service_healthy
-    # environment:
-    #   - TURSO_URL=http://db:8080
+    environment:
+      - TURSO_URL=http://db:8080
     networks:
       - mynetwork
 

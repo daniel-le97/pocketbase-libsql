@@ -7,7 +7,7 @@ LABEL org.opencontainers.image.source="https://github.com/daniel-le97/pocketbase
 # Accept the binary name as a build argument
 
 COPY ./main ./main
-RUN touch .env
+# RUN touch .env
 
 RUN chmod +x ./main
 

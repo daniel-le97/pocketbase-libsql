@@ -1,6 +1,6 @@
 # Use the official Golang image to create a build artifact.
 # This is the build stage.
-FROM golang:1.23-bullseye AS builder
+FROM golang:1.23-bookworm AS builder
 
 
 # Set the Current Working Directory inside the container
@@ -36,8 +36,8 @@ ENV GOOS=linux
 RUN go build -ldflags '-s -w -extldflags "-lc -lunwind -static"' -o main main.go
 
 # Start a new stage from scratch
-FROM debian:bullseye-slim
-RUN apt-get update && apt-get install -y ca-certificates
+FROM frolvlad/alpine-glibc:latest
+# RUN apt-get update && apt-get install -y ca-certificates
 
 WORKDIR /root/
 

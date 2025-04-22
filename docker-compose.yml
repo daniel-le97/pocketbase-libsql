@@ -1,8 +1,8 @@
 services:
   db:
-    # image: ghcr.io/tursodatabase/libsql-server:9241b00
-    build:
-      dockerfile: Dockerfile.libsql
+    image: ghcr.io/daniel-le97/libsql:latest
+    # build:
+    #   dockerfile: Dockerfile.libsql
     ports:
       - "8080:8080"
       - "5001:5001"
@@ -18,9 +18,10 @@ services:
       timeout: 2s
       retries: 5
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/daniel-le97/pocketbase-libsql:latest
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile.template
     ports:
       - "8090:8090"
     depends_on:

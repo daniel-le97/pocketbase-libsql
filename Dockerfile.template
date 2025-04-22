@@ -1,16 +1,30 @@
-FROM debian:bookworm-slim
+FROM debian:bookworm-slim AS builder
 
 WORKDIR /root/
 
+# Accept the version as a build argument
+ARG VERSION=v1.0.0
+
+# Detect architecture and set the binary name dynamically
+RUN apt-get update && apt-get install -y curl xz-utils && \
+    ARCH=$(uname -m) && \
+    if [ "$ARCH" = "x86_64" ]; then \
+        BINARY_NAME=pb-linux-amd64; \
+    elif [ "$ARCH" = "aarch64" ]; then \
+        BINARY_NAME=pb-linux-arm64; \
+    else \
+        echo "Unsupported architecture: $ARCH" && exit 1; \
+    fi && \
+    curl -L -o ./binary.tar.xz https://github.com/daniel-le97/pocketbase-libsql/releases/download/${VERSION}/$BINARY_NAME.tar.xz && \
+    tar -xf ./binary.tar.xz && \
+    mv pocketbase-libsql main && \
+    chmod +x ./main && \
+    rm -f ./binary.tar.xz
+
+FROM frolvlad/alpine-glibc
+WORKDIR /root/
 LABEL org.opencontainers.image.source="https://github.com/daniel-le97/pocketbase-libsql"
-
-# Accept the binary name as a build argument
-
-COPY ./main ./main
-# RUN touch .env
-
-RUN chmod +x ./main
-
+COPY --from=builder /root/main ./main
 EXPOSE 8090
 ENV PORT=8090
 

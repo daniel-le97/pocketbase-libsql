@@ -1,6 +1,8 @@
 # CUSTOM LIBSQL IMAGE WITH CURL FOR EASY HEALTHCHECKS
 FROM ghcr.io/tursodatabase/libsql-server
 
+LABEL org.opencontainers.image.source="https://github.com/daniel-le97/pocketbase-libsql"
+
 # Install curl
 RUN apt-get update && apt-get install -y curl
 

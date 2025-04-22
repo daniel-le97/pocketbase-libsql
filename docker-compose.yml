@@ -3,7 +3,6 @@ services:
     # image: ghcr.io/tursodatabase/libsql-server:9241b00
     build:
       dockerfile: Dockerfile.libsql
-    platform: linux/arm64
     ports:
       - "8080:8080"
       - "5001:5001"

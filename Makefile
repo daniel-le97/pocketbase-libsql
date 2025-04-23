@@ -293,5 +293,5 @@ docker-push-ghcr: docker-login-ghcr ## Push the Docker image to GitHub Container
     fi
 
 push-libsql: docker-login-ghcr ## Push the libsql custom image to GitHub
-	docker build -t ghcr.io/daniel-le97/libsql:latest -f Dockerfile.libsql .
-	docker push ghcr.io/daniel-le97/libsql:latest
+	docker build -t $(DOCKER_REGISTRY)/$(GITHUB_USERNAME)/libsql-server:latest -f Dockerfile.libsql .
+	docker push $(DOCKER_REGISTRY)/$(GITHUB_USERNAME)/libsql-server:latest

@@ -1,6 +1,6 @@
 services:
   db:
-    image: ghcr.io/daniel-le97/libsql:latest
+    image: ghcr.io/daniel-le97/libsql-server:latest
     # build:
     #   dockerfile: Dockerfile.libsql
     ports:
@@ -21,7 +21,7 @@ services:
     image: ghcr.io/daniel-le97/pocketbase-libsql:latest
     # build:
     #   context: .
-    #   dockerfile: Dockerfile.template
+    #   dockerfile: Dockerfile
     ports:
       - "8090:8090"
     depends_on:

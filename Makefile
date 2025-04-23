@@ -242,7 +242,7 @@ docker-build: ## Build a Docker image for a specific architecture (this copies t
 # Build a Docker image
 build-with-docker: ## Build the Docker image (this builds the binary within the image)
 	@echo "$(COLOR_BLUE)Building Docker image $(DOCKER_IMAGE_NAME):$(DOCKER_TAG)...$(COLOR_RESET)"
-	@if docker build -t $(DOCKER_REGISTRY)/$(GITHUB_USERNAME)/$(DOCKER_IMAGE_NAME):$(DOCKER_TAG) .; then \
+	@if docker buildx build --platform linux/arm64,linux/amd64 -t $(DOCKER_REGISTRY)/$(GITHUB_USERNAME)/$(DOCKER_IMAGE_NAME):$(DOCKER_TAG) . --load; then \
         echo "$(COLOR_GREEN)Docker image built successfully: $(DOCKER_REGISTRY)/$(GITHUB_USERNAME)/$(DOCKER_IMAGE_NAME):$(DOCKER_TAG)$(COLOR_RESET)"; \
     else \
         echo "$(COLOR_RED)Failed to build Docker image. Please check the logs.$(COLOR_RESET)"; \
@@ -285,7 +285,7 @@ docker-login-ghcr: ## Log in to GitHub Container Registry
 
 docker-push-ghcr: docker-login-ghcr ## Push the Docker image to GitHub Container Registry
 	@$(call print_info,Pushing Docker image $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) to GHCR...)
-	@if docker push $(DOCKER_REGISTRY)/$(GITHUB_USERNAME)/$(DOCKER_IMAGE_NAME):$(DOCKER_TAG); then \
+	@if docker buildx build --platform linux/arm64,linux/amd64 -t $(DOCKER_REGISTRY)/$(GITHUB_USERNAME)/$(DOCKER_IMAGE_NAME):$(DOCKER_TAG) . --push; then \
         $(call print_success,Docker image pushed successfully to ghcr.io/$(GITHUB_USERNAME)/$(DOCKER_IMAGE_NAME):$(DOCKER_TAG)); \
     else \
         $(call print_error,Failed to push Docker image to GHCR. Please check your credentials and network connection.); \
@@ -293,5 +293,4 @@ docker-push-ghcr: docker-login-ghcr ## Push the Docker image to GitHub Container
     fi
 
 push-libsql: docker-login-ghcr ## Push the libsql custom image to GitHub
-	docker build -t $(DOCKER_REGISTRY)/$(GITHUB_USERNAME)/libsql-server:latest -f Dockerfile.libsql .
-	docker push $(DOCKER_REGISTRY)/$(GITHUB_USERNAME)/libsql-server:latest
+	docker buildx build --platform linux/arm64,linux/amd64 -t $(DOCKER_REGISTRY)/$(GITHUB_USERNAME)/libsql-server:latest -f Dockerfile.libsql . --push

@@ -125,7 +125,7 @@ release: ## Create a GitHub release and upload binaries
         exit 1; \
     fi
 
-package: build-all ## Create .zip and .tar.gz archives for each binary and move them to RELEASE_DIR
+package: build-all ## Create .tar.xz archives for each binary and move them to RELEASE_DIR
 	@$(call print_info,"Packaging binaries into .tar.xz archives...")
 	@rm -rf $(RELEASE_DIR)/*
 	@mkdir -p $(RELEASE_DIR)
@@ -170,7 +170,7 @@ build: check_and_create_dir ## Build the application for the current OS using th
         fi; \
     fi
 
-zig-build: check_and_create_dir ## Build the application using Zig (use this for cross-compilation)
+zig-build: check_and_create_dir
 	@if [ -z "$(shell which zig)" ]; then \
 		$(call print_error,"Zig not found. Please install Zig first."); \
     	$(call print_warn,"You can install Zig using the command: make install-zig"); \
@@ -204,7 +204,7 @@ darwin-arm: ## Build the application for macOS ARM64
 	@$(MAKE) zig-build GOOS=darwin GOARCH=arm64 CC_TARGET=aarch64-macos
 
 
-build-all: remove-build-dir check_and_create_dir ## Build the application for all supported platforms
+build-all: remove-build-dir check_and_create_dir ## Build the application for all supported platforms locally
 	@$(call print_info,"Building for all platforms...")
 	@if [ "$(GOOS)" = "darwin" ]; then \
 		$(MAKE) patch-go-libsql; \
@@ -222,30 +222,22 @@ DOCKER_TAG=latest
 DOCKER_COMPOSE_FILE=docker-compose.yml
 DOCKER_REGISTRY=ghcr.io
 
-
-docker-build-all: ## Build and push Docker images for all architectures
-	@$(MAKE) docker-build ARCH=linux/arm64 BINARY=pb-linux-arm64
-	@$(MAKE) docker-build ARCH=linux/amd64 BINARY=pb-linux-amd64
-
-docker-build: ## Build a Docker image for a specific architecture (this copies the binary into the image)
-	@echo "$(COLOR_BLUE)Building Docker image for $(ARCH) using $(BINARY) with Dockerfile.template...$(COLOR_RESET)"
-	cp $(OUTPUT_DIR)/$(BINARY) ./main
-	@echo "Command: docker buildx build --platform $(ARCH) -f Dockerfile.template -t $(DOCKER_IMAGE_NAME):$(subst /,-,$(ARCH)) . --load"
-	@if docker buildx build --platform $(ARCH) -f Dockerfile.template -t $(DOCKER_IMAGE_NAME):$(subst /,-,$(ARCH)) . --load; then \
-		echo "$(COLOR_GREEN)Docker image built successfully: $(DOCKER_IMAGE_NAME):$(subst /,-,$(ARCH))$(COLOR_RESET)"; \
-	else \
-		echo "$(COLOR_RED)Failed to build Docker image. Please check the logs.$(COLOR_RESET)"; \
-		exit 1; \
-	fi
-	@rm -f ./main
-
 # Build a Docker image
-build-with-docker: ## Build the Docker image (this builds the binary within the image)
+docker-build-load: ## Build the Docker images (loads the image into the local Docker daemon)
 	@echo "$(COLOR_BLUE)Building Docker image $(DOCKER_IMAGE_NAME):$(DOCKER_TAG)...$(COLOR_RESET)"
 	@if docker buildx build --platform linux/arm64,linux/amd64 -t $(DOCKER_REGISTRY)/$(GITHUB_USERNAME)/$(DOCKER_IMAGE_NAME):$(DOCKER_TAG) . --load; then \
         echo "$(COLOR_GREEN)Docker image built successfully: $(DOCKER_REGISTRY)/$(GITHUB_USERNAME)/$(DOCKER_IMAGE_NAME):$(DOCKER_TAG)$(COLOR_RESET)"; \
     else \
         echo "$(COLOR_RED)Failed to build Docker image. Please check the logs.$(COLOR_RESET)"; \
+        exit 1; \
+    fi
+
+docker-build-push: docker-login-ghcr ## Build the Docker images (pushes to ghcr.io)
+	@$(call print_info,Pushing Docker image $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) to GHCR...)
+	@if docker buildx build --platform linux/arm64,linux/amd64 -t $(DOCKER_REGISTRY)/$(GITHUB_USERNAME)/$(DOCKER_IMAGE_NAME):$(DOCKER_TAG) . --push; then \
+        $(call print_success,Docker image pushed successfully to ghcr.io/$(GITHUB_USERNAME)/$(DOCKER_IMAGE_NAME):$(DOCKER_TAG)); \
+    else \
+        $(call print_error,Failed to push Docker image to GHCR. Please check your credentials and network connection.); \
         exit 1; \
     fi
 
@@ -283,14 +275,7 @@ docker-login-ghcr: ## Log in to GitHub Container Registry
         exit 1; \
     fi
 
-docker-push-ghcr: docker-login-ghcr ## Push the Docker image to GitHub Container Registry
-	@$(call print_info,Pushing Docker image $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) to GHCR...)
-	@if docker buildx build --platform linux/arm64,linux/amd64 -t $(DOCKER_REGISTRY)/$(GITHUB_USERNAME)/$(DOCKER_IMAGE_NAME):$(DOCKER_TAG) . --push; then \
-        $(call print_success,Docker image pushed successfully to ghcr.io/$(GITHUB_USERNAME)/$(DOCKER_IMAGE_NAME):$(DOCKER_TAG)); \
-    else \
-        $(call print_error,Failed to push Docker image to GHCR. Please check your credentials and network connection.); \
-        exit 1; \
-    fi
 
-push-libsql: docker-login-ghcr ## Push the libsql custom image to GitHub
+
+push-libsql-server: docker-login-ghcr ## Push the libsql-server custom images to ghcr.io
 	docker buildx build --platform linux/arm64,linux/amd64 -t $(DOCKER_REGISTRY)/$(GITHUB_USERNAME)/libsql-server:latest -f Dockerfile.libsql . --push

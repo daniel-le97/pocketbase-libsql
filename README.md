@@ -143,21 +143,20 @@ Available targets:
  check-deps           Check if required dependencies (Zig and Go) are installed
  install-zig          Install Zig using ZVM
  release              Create a GitHub release and upload binaries
+ package              Create .tar.xz archives for each binary and move them to RELEASE_DIR
  build                Build the application for the current OS using the default CC compiler
- zig-build            Build the application using Zig (use this for cross-compilation)
  linux-arm            Build the application for Linux ARM64
  linux-amd            Build the application for Linux AMD64
  darwin-amd           Build the application for macOS AMD64
  darwin-arm           Build the application for macOS ARM64
- build-all            Build the application for all supported platforms
- docker-build-all     Build and push Docker images for all architectures
- docker-build         Build a Docker image for a specific architecture (this copies the binary into the image)
- build-docker         Build the Docker image (this builds the binary within the image)
+ build-all            Build the application for all supported platforms locally
+ docker-build-load    Build the Docker images (loads the image into the local Docker daemon)
+ docker-build-push    Build the Docker images (pushes to ghcr.io)
  docker-compose-up    Start services using Docker Compose
  docker-compose-down  Stop services using Docker Compose
  docker-compose-logs  View logs from Docker Compose services
  docker-login-ghcr    Log in to GitHub Container Registry
- docker-push-ghcr     Push the Docker image to GitHub Container Registry
+ push-libsql-server   Push the libsql-server custom images to ghcr.io
 ```
 
 ## Notes

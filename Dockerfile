@@ -1,7 +1,5 @@
 # Use the official Golang image to create a build artifact.
-# This is the build stage.
 FROM golang:1.23-bookworm AS builder
-
 
 # Set the Current Working Directory inside the container
 WORKDIR /app
@@ -14,6 +12,7 @@ RUN go mod download
 
 ARG ZIG_VERSION=0.13.0
 
+# **Install zig manually** #
 # ARG ZIG_ARCH=aarch64
 # RUN apt-get update && apt-get install -y unzip xz-utils \
 #     && wget https://ziglang.org/download/${ZIG_VERSION}/zig-linux-${ZIG_ARCH}-${ZIG_VERSION}.tar.xz \
@@ -23,13 +22,10 @@ ARG ZIG_VERSION=0.13.0
 #     && rm zig-linux-${ZIG_ARCH}-${ZIG_VERSION}.tar.xz
 # RUN apt-get update && apt-get install -y libc6-dev clang
 
-SHELL ["/bin/bash", "-c"]
-
 RUN apt-get update && apt-get install -y unzip xz-utils
 
 RUN curl https://raw.githubusercontent.com/tristanisham/zvm/master/install.sh | bash \
-    && source /root/.bashrc \
-    && zvm install ${ZIG_VERSION}
+    && /root/.zvm/self/zvm install ${ZIG_VERSION}
 
 # Copy the source from the current directory to the Working Directory inside the container
 COPY . .
@@ -39,9 +35,7 @@ ENV CGO_ENABLED=1
 ENV CC="/root/.zvm/bin/zig cc"
 ENV CXX="/root/.zvm/bin/zig c++"
 # Set a writable temporary directory for Go
-ENV GOTMPDIR=/app/tmp
-# Create the temporary directory
-RUN mkdir -p /app/tmp && chmod -R 777 /app/tmp
+ENV GOTMPDIR=/tmp
 
 RUN go build -ldflags '-s -w -extldflags "-lc -lunwind -static"' -o main main.go
 
